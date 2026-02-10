@@ -1,0 +1,299 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// MODELO PRINCIPAL: TENANT (EMPRESA)
+// ============================================================================
+// Cada tenant representa una empresa registrada en el sistema SaaS
+// Este es el punto de partida para el aislamiento multitenant
+
+model Tenant {
+  id                  String    @id @default(cuid())
+  
+  // Información fiscal de la empresa
+  nombre_comercial    String
+  razon_social        String
+  ruc                 String    @unique                    // RUC único a nivel global
+  direccion           String
+  telefono            String?
+  email               String    @unique
+  
+  // Estado
+  estado_activo       Boolean   @default(true)
+  
+  // Auditoría
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relaciones (1 tenant : N usuarios/clientes/productos/facturas)
+  usuarios            Usuario[]
+  clientes            Cliente[]
+  productos           Producto[]
+  facturas            Factura[]
+  
+  @@map("tenants")
+}
+
+// ============================================================================
+// MODELO: USUARIO (Con DISCRIMINADOR: tenant_id)
+// ============================================================================
+// Representa usuarios dentro de cada tenant
+// IMPORTANTE: tenantId es el discriminador multitenant
+
+model Usuario {
+  id                  String    @id @default(cuid())
+  
+  // DISCRIMINADOR MULTITENANT - OBLIGATORIO
+  tenantId            String
+  
+  // Datos de usuario
+  email               String
+  nombre_completo     String
+  password_hash       String
+  
+  // Rol dentro del tenant
+  rol                 Rol       @default(USUARIO)        // ADMIN o USUARIO
+  
+  // Estado
+  activo              Boolean   @default(true)
+  ultimo_login        DateTime?
+  
+  // Auditoría
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relaciones
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  
+  // Índices para optimizar queries multitenant
+  @@unique([tenantId, email])                            // Email único por tenant
+  @@index([tenantId])                                    // Índice para filtrado
+  @@map("usuarios")
+}
+
+enum Rol {
+  ADMIN
+  USUARIO
+}
+
+// ============================================================================
+// MODELO: CLIENTE (Con DISCRIMINADOR: tenant_id)
+// ============================================================================
+// Representa los clientes/compradores de cada empresa (tenant)
+
+model Cliente {
+  id                      String    @id @default(cuid())
+  
+  // DISCRIMINADOR MULTITENANT - OBLIGATORIO
+  tenantId                String
+  
+  // Datos del cliente
+  nombre                  String
+  identificacion          String
+  tipo_identificacion     TipoIdentificacion
+  email                   String?
+  telefono                String?
+  direccion               String?
+  ciudad                  String?
+  
+  // Estado
+  activo                  Boolean   @default(true)
+  
+  // Auditoría
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  // Relaciones
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  facturas                Factura[]
+  
+  // Índices
+  @@index([tenantId])                                    // Filtrado por tenant
+  @@map("clientes")
+}
+
+enum TipoIdentificacion {
+  RUC
+  CEDULA
+  PASAPORTE
+}
+
+// ============================================================================
+// MODELO: PRODUCTO (Con DISCRIMINADOR: tenant_id)
+// ============================================================================
+// Representa los productos/servicios que vende cada empresa
+
+model Producto {
+  id                  String    @id @default(cuid())
+  
+  // DISCRIMINADOR MULTITENANT - OBLIGATORIO
+  tenantId            String
+  
+  // Datos del producto
+  codigo              String
+  nombre              String
+  descripcion         String?
+  precio_unitario     Decimal   @db.Decimal(10, 2)      // Precio con 2 decimales
+  
+  // Impuestos
+  aplica_iva          Boolean   @default(true)
+  codigo_impuesto     String?                            // Código del SRI
+  
+  // Medida
+  unidad_medida       String?
+  
+  // Estado
+  activo              Boolean   @default(true)
+  
+  // Auditoría
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relaciones
+  tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  detallesFactura     DetalleFactura[]
+  
+  // Índices
+  @@unique([tenantId, codigo])                           // Código único por tenant
+  @@index([tenantId])                                    // Filtrado por tenant
+  @@map("productos")
+}
+
+// ============================================================================
+// MODELO: FACTURA (Con DISCRIMINADOR: tenant_id)
+// ============================================================================
+// CORE DEL SISTEMA: Representa las facturas electrónicas emitidas
+
+model Factura {
+  id                      String    @id @default(cuid())
+  
+  // DISCRIMINADOR MULTITENANT - OBLIGATORIO
+  tenantId                String
+  
+  // Referencia al cliente
+  clienteId               String
+  
+  // Datos de numeración (según SRI)
+  numero_secuencial       String
+  serie_establecimiento   String
+  punto_emision           String
+  
+  // Fechas
+  fecha_emision           DateTime  @default(now())
+  fecha_vencimiento       DateTime?
+  
+  // Cálculos de facturación
+  subtotal                Decimal   @db.Decimal(12, 2)
+  iva                     Decimal   @db.Decimal(12, 2)   // IVA 15% (calculado automáticamente)
+  total                   Decimal   @db.Decimal(12, 2)
+  
+  // XML y autorización SRI
+  xml_generado            String?   @db.Text              // XML completo guardado
+  clave_acceso            String    @unique              // 49 dígitos único
+  
+  // Estado de factura
+  estado                  EstadoFactura @default(BORRADOR)
+  
+  // Auditoría
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  // Relaciones
+  tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  cliente                 Cliente   @relation(fields: [clienteId], references: [id])
+  detalles                DetalleFactura[]
+  
+  // Índices para queries frecuentes
+  @@index([tenantId])                                    // Filtrado por tenant
+  @@index([clienteId])                                   // Filtrado por cliente
+  @@index([estado])                                      // Filtrado por estado
+  @@map("facturas")
+}
+
+enum EstadoFactura {
+  BORRADOR                                               // En edición
+  EMITIDA                                                // Enviada a SRI
+  AUTORIZADA                                             // Autorizada por SRI
+  CANCELADA                                              // Anulada
+}
+
+// ============================================================================
+// MODELO: DETALLESFACTURA (Con DISCRIMINADOR: tenant_id)
+// ============================================================================
+// Detalles/líneas de cada factura (items vendidos)
+
+model DetalleFactura {
+  id                  String    @id @default(cuid())
+  
+  // Referencias a factura y producto
+  facturaId           String
+  productId           String
+  
+  // DISCRIMINADOR MULTITENANT - OBLIGATORIO
+  tenantId            String
+  
+  // Datos de la línea
+  cantidad            Decimal   @db.Decimal(10, 2)
+  precio_unitario     Decimal   @db.Decimal(10, 2)
+  descuento           Decimal   @db.Decimal(10, 2)      @default(0)
+  
+  // Cálculos de línea
+  subtotal_linea      Decimal   @db.Decimal(12, 2)      // cantidad * precio - descuento
+  iva_linea           Decimal   @db.Decimal(12, 2)      // subtotal * 0.15 (si aplica IVA)
+  total_linea         Decimal   @db.Decimal(12, 2)      // subtotal + iva
+  
+  // Auditoría
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  
+  // Relaciones
+  factura             Factura   @relation(fields: [facturaId], references: [id], onDelete: Cascade)
+  producto            Producto  @relation(fields: [productId], references: [id])
+  
+  // Índices
+  @@index([facturaId])                                   // Filtrado por factura
+  @@index([tenantId])                                    // Filtrado por tenant
+  @@map("detalles_facturas")
+}
+
+// ============================================================================
+// NOTAS IMPORTANTES SOBRE ARQUITECTURA MULTITENANT:
+// ============================================================================
+// 
+// 1. DISCRIMINADOR tenant_id
+//    - Presente en: Usuario, Cliente, Producto, Factura, DetalleFactura
+//    - Ausente en: Tenant (es la tabla principal)
+//    - Propósito: Aislar datos por empresa
+//
+// 2. FOREIGN KEYS
+//    - Todas las FKs incluyen onDelete: Cascade
+//    - Cuando un tenant se elimina, se eliminan sus datos
+//
+// 3. ÍNDICES
+//    - @@index([tenantId]) en todas las tablas multitenant
+//    - Optimiza queries filtradas por tenant_id
+//
+// 4. RELACIONES ENTRE TENANTS
+//    - Cliente → Factura (mismo tenant)
+//    - Producto → DetalleFactura (mismo tenant)
+//    - Los datos están aislados por tenant_id
+//
+// 5. QUERIES MULTITENANT
+//    CORRECTO:
+//      prisma.usuarios.findMany({
+//        where: { tenantId: '123' }  // ← INCLUIR SIEMPRE
+//      })
+//    
+//    INCORRECTO (PELIGRO - ACCESO A OTROS TENANTS):
+//      prisma.usuarios.findMany()  // ← NUNCA SIN FILTRO
+//
+// ============================================================================

@@ -1,0 +1,54 @@
+# Dependencies
+node_modules/
+package-lock.json
+npm-debug.log
+yarn-error.log
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+.nyc_output/
+coverage/
+*.lcov
+
+# Logs
+logs/
+*.log
+
+# Runtime files
+*.pid
+*.seed
+*.pid.lock
+
+# Prisma
+prisma/.env
+prisma/*.db
+prisma/*.db-shm
+prisma/*.db-wal
+
+# Uploads
+uploads/
+!uploads/.gitkeep
+
+# Misc
+.turbo
+dist
