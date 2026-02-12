@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Servicio Postgres (Base de Datos)
+  postgres:
+    image: postgres:15-alpine
+    container_name: electronic_invoicing_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: electronic_invoicing_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  # Servicio Backend (API)
+  api:
+    build: .
+    container_name: electronic_invoicing_api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Sobrescribimos la conexión de base de datos para usar el nombre del servicio 'postgres'
+      DATABASE_URL: postgresql://postgres:password@postgres:5432/electronic_invoicing_db?schema=public
+      PORT: 3000
+      NODE_ENV: production
+      # Usa las mismas variables de entorno que tienes en .env local para JWT (o mejor aún, usa un archivo .env si prefieres)
+      JWT_SECRET: ${JWT_SECRET:-tu_secreto_super_seguro_para_firmar_tokens_cambia_esto_en_produccion}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-tu_secreto_para_refresh_tokens_cambia_esto_en_produccion}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-3600}
+      REFRESH_TOKEN_EXPIRATION: ${REFRESH_TOKEN_EXPIRATION:-604800}
+    restart: on-failure
+
+volumes:
+  postgres_data:
