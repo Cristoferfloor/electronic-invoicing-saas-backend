@@ -1,21 +1,21 @@
-// Interfaces Multitenant
+// Multitenant Interfaces
 export interface ITenantContext {
   tenantId: string;
   userId: string;
   email: string;
-  rol: string;
+  role: string;
 }
 
 export interface IAuthPayload {
   userId: string;
   tenantId: string;
   email: string;
-  rol: string;
+  role: string;
   iat?: number;
   exp?: number;
 }
 
-// Interfaces de Respuesta
+// Response Interfaces
 export interface IApiResponse<T> {
   success: boolean;
   data?: T;
@@ -31,29 +31,27 @@ export interface IPaginatedResponse<T> {
   pages: number;
 }
 
-// Interfaces de Entidades
+// Entity Interfaces
 export interface IInvoice {
   id: string;
   tenantId: string;
-  clienteId: string;
-  numeroSecuencial: string;
-  fechaEmision: Date;
+  clientId: string;
+  sequentialNumber: string;
+  issueDate: Date;
   subtotal: number;
-  iva: number;
+  totalVat: number;
   total: number;
-  claveAcceso: string;
-  estado: string;
-  xmlGenerado?: string;
+  accessKey: string;
+  status: string;
+  generatedXml?: string;
 }
 
 export interface IInvoiceItem {
   id: string;
   invoiceId: string;
   productId: string;
-  cantidad: number;
-  precioUnitario: number;
-  descuento: number;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
   subtotal: number;
-  iva: number;
-  total: number;
 }

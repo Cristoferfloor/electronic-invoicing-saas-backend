@@ -1,28 +1,28 @@
 import { z } from 'zod';
 
 export const registerTenantSchema = z.object({
-    // Datos de la Empresa
-    nombre_comercial: z.string().min(3, 'El nombre comercial debe tener al menos 3 caracteres'),
-    razon_social: z.string().min(3, 'La razón social debe tener al menos 3 caracteres'),
-    ruc: z.string().length(13, 'El RUC debe tener exactamente 13 dígitos').regex(/^\d+$/, 'El RUC solo puede contener números'),
-    direccion: z.string().min(5, 'La dirección es obligatoria'),
-    telefono: z.string().optional(),
-    email_empresa: z.string().email('Email de empresa inválido'),
+    // Company Data
+    commercialName: z.string().min(3, 'Commercial name must be at least 3 characters long'),
+    legalName: z.string().min(3, 'Legal name must be at least 3 characters long'),
+    taxId: z.string().length(13, 'TAX ID (RUC) must be exactly 13 digits long').regex(/^\d+$/, 'TAX ID can only contain numbers'),
+    address: z.string().min(5, 'Address is required'),
+    phone: z.string().optional(),
+    email: z.string().email('Invalid company email'),
 
-    // Datos del Administrador
-    nombre: z.string().min(2, 'El nombre debe tener al menos 2 caracteres'),
-    apellido: z.string().min(2, 'El apellido debe tener al menos 2 caracteres'),
-    email_admin: z.string().email('Email de administrador inválido'),
-    password: z.string().min(8, 'La contraseña debe tener al menos 8 caracteres')
-        .regex(/[A-Z]/, 'Debe contener al menos una mayúscula')
-        .regex(/[0-9]/, 'Debe contener al menos un número'),
+    // Administrator Data
+    firstName: z.string().min(2, 'First name must be at least 2 characters long'),
+    lastName: z.string().min(2, 'Last name must be at least 2 characters long'),
+    adminEmail: z.string().email('Invalid administrator email'),
+    password: z.string().min(8, 'Password must be at least 8 characters long')
+        .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+        .regex(/[0-9]/, 'Must contain at least one number'),
 });
 
 export const loginSchema = z.object({
-    email: z.string().email('Email inválido'),
-    password: z.string().min(1, 'La contraseña es obligatoria'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(1, 'Password is required'),
 });
 
 export const refreshTokenSchema = z.object({
-    refreshToken: z.string().min(1, 'El refresh token es obligatorio'),
+    refreshToken: z.string().min(1, 'Refresh token is required'),
 });

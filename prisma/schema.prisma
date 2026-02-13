@@ -11,88 +11,88 @@ datasource db {
 }
 
 // ============================================================================
-// MODELO PRINCIPAL: TENANT (EMPRESA)
+// MAIN MODEL: TENANT (COMPANY)
 // ============================================================================
 model Tenant {
   id                  String    @id @default(cuid())
   
-  // Información fiscal
-  nombre_comercial    String
-  razon_social        String
-  ruc                 String    @unique
-  direccion           String
-  telefono            String?
+  // Tax information
+  commercialName      String
+  legalName           String
+  taxId               String    @unique // RUC in Ecuador
+  address             String
+  phone               String?
   email               String    @unique
-  logo_url            String?
+  logoUrl             String?
   
-  // Plan y Estado
+  // Plan and Status
   plan                String    @default("FREE")
-  estado_activo       Boolean   @default(true)
+  isActive            Boolean   @default(true)
   
-  // Auditoría
+  // Audit
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   
-  // Relaciones
-  usuarios            Usuario[]
-  clientes            Cliente[]
-  productos           Producto[]
-  facturas            Factura[]
-  configuracion       ConfiguracionFacturacion? // Relación 1 a 1
+  // Relationships
+  users               User[]
+  clients             Client[]
+  products            Product[]
+  invoices            Invoice[]
+  configuration       BillingConfiguration? // 1 to 1 relationship
 
   @@map("tenants")
 }
 
 // ============================================================================
-// CONFIGURACIÓN DE FACTURACIÓN (Por Tenant)
+// BILLING CONFIGURATION (Per Tenant)
 // ============================================================================
-model ConfiguracionFacturacion {
+model BillingConfiguration {
   id                  String    @id @default(cuid())
-  tenantId            String    @unique // Solo una config por tenant
+  tenantId            String    @unique
   
-  // Datos SRI
-  establecimiento     String    @default("001") // 3 dígitos
-  punto_emision       String    @default("001") // 3 dígitos
-  secuencial_actual   Int       @default(1)
+  // SRI Data
+  establishment       String    @default("001")
+  emissionPoint       String    @default("001")
+  currentSequential   Int       @default(1)
   
-  // Configuración Técnica
-  ambiente            AmbienteSri @default(PRUEBAS)
-  tipo_emision        Int       @default(1) // 1=Normal
+  // Technical Configuration
+  environment         SriEnvironment @default(TEST)
+  emissionType        Int            @default(1) // 1=Normal
   
-  // Firma Electrónica
-  firma_electronica   String?   // Ruta al archivo .p12
-  firma_password      String?   // Contraseña encriptada
+  // Electronic Signature
+  electronicSignature String?   // Path to .p12 file
+  signaturePassword   String?   // Encrypted password
   
   tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  @@map("configuracion_facturacion")
+  @@map("billing_configurations")
 }
 
-enum AmbienteSri {
-  PRUEBAS
-  PRODUCCION
+enum SriEnvironment {
+  TEST
+  PRODUCTION
 }
 
 // ============================================================================
-// USUARIOS Y SEGURIDAD
+// USERS AND SECURITY
 // ============================================================================
-model Usuario {
+model User {
   id                  String    @id @default(cuid())
   tenantId            String
   
-  nombre              String
-  apellido            String
+  firstName           String
+  lastName            String
   email               String
-  password_hash       String
+  passwordHash        String
   
-  rol                 Rol       @default(USUARIO)
-  activo              Boolean   @default(true)
-  last_login          DateTime?
+  role                Role      @default(USER)
+  isActive            Boolean   @default(true)
+  lastLogin           DateTime?
   
-  // Relaciones
+  // Relationships
   tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   refreshTokens       RefreshToken[]
   
@@ -101,7 +101,7 @@ model Usuario {
   
   @@unique([tenantId, email])
   @@index([tenantId])
-  @@map("usuarios")
+  @@map("users")
 }
 
 model RefreshToken {
@@ -112,149 +112,149 @@ model RefreshToken {
   isRevoked   Boolean  @default(false)
   createdAt   DateTime @default(now())
   
-  usuario     Usuario  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
   @@index([userId])
   @@map("refresh_tokens")
 }
 
-enum Rol {
+enum Role {
   ADMIN
-  USUARIO
+  USER
 }
 
 // ============================================================================
-// CLIENTES
+// CLIENTS
 // ============================================================================
-model Cliente {
+model Client {
   id                      String    @id @default(cuid())
   tenantId                String
   
-  tipo_identificacion     TipoIdentificacion
-  identificacion          String
-  razon_social            String
-  direccion               String?
-  telefono                String?
-  email                   String?
+  identityType           IdentityType
+  identityNumber         String
+  legalName              String
+  address                String?
+  phone                  String?
+  email                  String?
   
-  activo                  Boolean   @default(true)
+  isActive               Boolean   @default(true)
   
   tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  facturas                Factura[]
+  invoices                Invoice[]
   
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   
   @@index([tenantId])
-  @@map("clientes")
+  @@map("clients")
 }
 
-enum TipoIdentificacion {
+enum IdentityType {
   RUC
-  CEDULA
-  PASAPORTE
+  ID_CARD
+  PASSPORT
 }
 
 // ============================================================================
-// PRODUCTOS
+// PRODUCTS
 // ============================================================================
-model Producto {
+model Product {
   id                  String    @id @default(cuid())
   tenantId            String
   
-  codigo              String
-  nombre              String
-  descripcion         String?
-  precio_unitario     Decimal   @db.Decimal(10, 2)
+  code                String
+  name                String
+  description         String?
+  unitPrice           Decimal   @db.Decimal(10, 2)
   
-  tipo                TipoProducto @default(BIEN)
-  aplica_iva          Boolean   @default(true)
-  activo              Boolean   @default(true)
+  type                ProductType @default(GOOD)
+  applyVat            Boolean     @default(true)
+  isActive            Boolean     @default(true)
   
   tenant              Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  detallesFactura     DetalleFactura[]
+  invoiceDetails      InvoiceDetail[]
   
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
   
-  @@unique([tenantId, codigo])
+  @@unique([tenantId, code])
   @@index([tenantId])
-  @@map("productos")
+  @@map("products")
 }
 
-enum TipoProducto {
-  BIEN
-  SERVICIO
+enum ProductType {
+  GOOD
+  SERVICE
 }
 
 // ============================================================================
-// FACTURACIÓN
+// INVOICING
 // ============================================================================
-model Factura {
+model Invoice {
   id                      String    @id @default(cuid())
   tenantId                String
   
-  // Datos Generales
-  numero_secuencial       String    // Formato 001-001-000000001
-  serie                   String    // 001001
-  secuencial_numerico     Int       // Para ordenamiento fácil
+  // General Data
+  sequentialNumber        String    // Format 001-001-000000001
+  series                  String    // 001001
+  numericSequential       Int       
   
-  clave_acceso            String    @unique
-  fecha_emision           DateTime
+  accessKey               String    @unique
+  issueDate               DateTime
   
-  // Relaciones
-  clienteId               String
-  cliente                 Cliente   @relation(fields: [clienteId], references: [id])
+  // Relationships
+  clientId                String
+  client                  Client    @relation(fields: [clientId], references: [id])
   
-  // Valores Económicos
-  subtotal_sin_iva        Decimal   @db.Decimal(12, 2)
-  subtotal_con_iva        Decimal   @db.Decimal(12, 2)
-  total_descuento         Decimal   @db.Decimal(12, 2)
+  // Economic Values
+  subtotalWithoutVat      Decimal   @db.Decimal(12, 2)
+  subtotalWithVat         Decimal   @db.Decimal(12, 2)
+  totalDiscount           Decimal   @db.Decimal(12, 2)
   subtotal                Decimal   @db.Decimal(12, 2)
-  total_iva               Decimal   @db.Decimal(12, 2)
+  totalVat                Decimal   @db.Decimal(12, 2)
   total                   Decimal   @db.Decimal(12, 2)
   
-  // Estado y Control
-  estado                  EstadoFactura @default(EMITIDA)
-  xml_generado            String?   @db.Text
-  mensaje_error_sri       String?
+  // Status and Control
+  status                  InvoiceStatus @default(ISSUED)
+  generatedXml            String?       @db.Text
+  sriErrorMessage         String?
   
   tenant                  Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  detalles                DetalleFactura[]
+  details                 InvoiceDetail[]
   
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
   
   @@index([tenantId])
-  @@index([clienteId])
-  @@index([fecha_emision])
-  @@map("facturas")
+  @@index([clientId])
+  @@index([issueDate])
+  @@map("invoices")
 }
 
-model DetalleFactura {
+model InvoiceDetail {
   id                  String    @id @default(cuid())
   tenantId            String
-  facturaId           String
+  invoiceId           String
   productId           String
   
-  cantidad            Decimal   @db.Decimal(10, 2)
-  precio_unitario     Decimal   @db.Decimal(10, 2)
-  descuento           Decimal   @db.Decimal(10, 2) @default(0)
+  quantity            Decimal   @db.Decimal(10, 2)
+  unitPrice           Decimal   @db.Decimal(10, 2)
+  discount            Decimal   @db.Decimal(10, 2) @default(0)
   subtotal            Decimal   @db.Decimal(12, 2)
   
-  factura             Factura   @relation(fields: [facturaId], references: [id], onDelete: Cascade)
-  producto            Producto  @relation(fields: [productId], references: [id])
+  invoice             Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  product             Product   @relation(fields: [productId], references: [id])
   
   createdAt           DateTime  @default(now())
   
-  @@index([facturaId])
-  @@map("factura_detalles")
+  @@index([invoiceId])
+  @@map("invoice_details")
 }
 
-enum EstadoFactura {
-  BORRADOR
-  EMITIDA
-  AUTORIZADA
-  NO_AUTORIZADA
-  ANULADA
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  AUTHORIZED
+  NOT_AUTHORIZED
+  CANCELLED
 }

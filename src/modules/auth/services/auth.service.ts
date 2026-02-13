@@ -2,19 +2,19 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import prisma from '../../../config/database';
-import { Rol } from '@prisma/client';
+import { Role } from '@prisma/client';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'refresh_secret';
-const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '3600'; // 1 hora
-const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60; // 7 días
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '3600'; // 1 hour
+const REFRESH_TOKEN_EXPIRATION = 7 * 24 * 60 * 60; // 7 days
 
 export class AuthService {
 
-    // Generar Tokens
-    static generateTokens(userId: string, tenantId: string, rol: string) {
+    // Generate Tokens
+    static generateTokens(userId: string, tenantId: string, role: string) {
         const accessToken = jwt.sign(
-            { userId, tenantId, rol },
+            { userId, tenantId, role },
             JWT_SECRET,
             { expiresIn: Number(JWT_EXPIRATION) || '1h' }
         );
@@ -24,69 +24,66 @@ export class AuthService {
         return { accessToken, refreshToken };
     }
 
-    // Registro de Tenant + Usuario Admin
+    // Register Tenant + Admin User
     static async registerTenant(data: any) {
         const {
-            nombre_comercial, razon_social, ruc, direccion, telefono, email_empresa, // Datos Tenant
-            nombre, apellido, email_admin, password // Datos Admin
+            commercialName, legalName, taxId, address, phone, email, // Tenant Data
+            firstName, lastName, adminEmail, password // Admin Data
         } = data;
 
-        // Verificar unicidad
-        const existingTenant = await prisma.tenant.findUnique({ where: { ruc } });
-        if (existingTenant) throw new Error('El RUC ya está registrado');
+        // Verify uniqueness
+        const existingTenant = await prisma.tenant.findUnique({ where: { taxId } });
+        if (existingTenant) throw new Error('The TAX ID (RUC) is already registered');
 
-        const existingUser = await prisma.usuario.findFirst({ where: { email: email_admin } });
-        // Nota: El email admin podría repetirse en DIFERENTES tenants en un sistema multitenant real, 
-        // pero para seguridad inicial, evitamos admins duplicados globalmente si se prefiere,
-        // o validamos por tenant. Aquí validamos global para evitar confusiones al inicio.
-        if (existingUser) throw new Error('El email del administrador ya está registrado');
+        const existingUser = await prisma.user.findFirst({ where: { email: adminEmail } });
+        if (existingUser) throw new Error('The administrator email is already registered');
 
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Transacción para crear todo junto
+        // Transaction to create everything together
         const result = await prisma.$transaction(async (tx) => {
-            // 1. Crear Tenant
+            // 1. Create Tenant
             const newTenant = await tx.tenant.create({
                 data: {
-                    nombre_comercial,
-                    razon_social,
-                    ruc,
-                    direccion,
-                    telefono,
-                    email: email_empresa,
+                    commercialName,
+                    legalName,
+                    taxId,
+                    address,
+                    phone,
+                    email,
                     plan: 'FREE',
-                    configuracion: {
+                    configuration: {
                         create: {
-                            establecimiento: '001',
-                            punto_emision: '001',
-                            ambiente: 'PRUEBAS',
-                            tipo_emision: 1
+                            establishment: '001',
+                            emissionPoint: '001',
+                            environment: 'TEST',
+                            emissionType: 1
                         }
                     }
                 }
             });
 
-            // 2. Crear Usuario Admin
-            const newUser = await tx.usuario.create({
+            // 2. Create Admin User
+            const newUser = await tx.user.create({
                 data: {
                     tenantId: newTenant.id,
-                    nombre,
-                    apellido,
-                    email: email_admin,
-                    password_hash: passwordHash,
-                    rol: Rol.ADMIN,
-                    activo: true
+                    firstName,
+                    lastName,
+                    email: adminEmail,
+                    passwordHash: passwordHash,
+                    role: Role.ADMIN,
+                    isActive: true
                 }
             });
 
             return { tenant: newTenant, user: newUser };
         });
 
-        // Generar tokens
-        const tokens = this.generateTokens(result.user.id, result.tenant.id, Rol.ADMIN);
+        // Generate tokens
+        const tokens = this.generateTokens(result.user.id, result.tenant.id, Role.ADMIN);
 
-        // Guardar Refresh Token
+        // Save Refresh Token
         await prisma.refreshToken.create({
             data: {
                 userId: result.user.id,
@@ -100,8 +97,8 @@ export class AuthService {
             user: {
                 id: result.user.id,
                 email: result.user.email,
-                nombre: result.user.nombre,
-                rol: result.user.rol
+                firstName: result.user.firstName,
+                role: result.user.role
             },
             ...tokens
         };
@@ -109,28 +106,24 @@ export class AuthService {
 
     // Login
     static async login(email: string, password: string) {
-        // Buscar usuario en todos los tenants (email es único junto con tenantId, pero aquí asumimos login global por email)
-        // Si se permite mismo email en varios tenants, el login debería pedir tenantId o listar opciones.
-        // Asumiremos email único global para simplificar o buscaremos el primero.
-
-        // Buscar usuario
-        const user = await prisma.usuario.findFirst({
+        // Search user
+        const user = await prisma.user.findFirst({
             where: { email },
             include: { tenant: true }
         });
 
-        if (!user) throw new Error('Credenciales inválidas');
-        if (!user.activo) throw new Error('Usuario inactivo');
-        if (!user.tenant.estado_activo) throw new Error('La empresa está inactiva');
+        if (!user) throw new Error('Invalid credentials');
+        if (!user.isActive) throw new Error('User is inactive');
+        if (!user.tenant.isActive) throw new Error('The company is inactive');
 
-        // Verificar password
-        const isMatch = await bcrypt.compare(password, user.password_hash);
-        if (!isMatch) throw new Error('Credenciales inválidas');
+        // Verify password
+        const isMatch = await bcrypt.compare(password, user.passwordHash);
+        if (!isMatch) throw new Error('Invalid credentials');
 
-        // Generar nuevos tokens
-        const tokens = this.generateTokens(user.id, user.tenantId, user.rol);
+        // Generate new tokens
+        const tokens = this.generateTokens(user.id, user.tenantId, user.role);
 
-        // Guardar Refresh Token (y limpiar viejos si se desea)
+        // Save Refresh Token
         await prisma.refreshToken.create({
             data: {
                 userId: user.id,
@@ -139,19 +132,19 @@ export class AuthService {
             }
         });
 
-        // Actualizar último login
-        await prisma.usuario.update({
+        // Update last login
+        await prisma.user.update({
             where: { id: user.id },
-            data: { last_login: new Date() }
+            data: { lastLogin: new Date() }
         });
 
         return {
             user: {
                 id: user.id,
                 email: user.email,
-                nombre: user.nombre,
-                apellido: user.apellido,
-                rol: user.rol,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                role: user.role,
                 tenantId: user.tenantId
             },
             tenant: user.tenant,
@@ -163,17 +156,17 @@ export class AuthService {
     static async refreshToken(token: string) {
         const storedToken = await prisma.refreshToken.findUnique({
             where: { token },
-            include: { usuario: true }
+            include: { user: true }
         });
 
-        if (!storedToken) throw new Error('Refresh token inválido');
-        if (storedToken.isRevoked) throw new Error('Refresh token revocado');
-        if (storedToken.expiresAt < new Date()) throw new Error('Refresh token expirado');
+        if (!storedToken) throw new Error('Invalid refresh token');
+        if (storedToken.isRevoked) throw new Error('Refresh token has been revoked');
+        if (storedToken.expiresAt < new Date()) throw new Error('Refresh token has expired');
 
-        const user = storedToken.usuario;
-        const newTokens = this.generateTokens(user.id, user.tenantId, user.rol);
+        const user = storedToken.user;
+        const newTokens = this.generateTokens(user.id, user.tenantId, user.role);
 
-        // Revocar el usado y crear nuevo (Rotación de Refresh Tokens)
+        // Revoke the used one and create a new one (Refresh Token Rotation)
         await prisma.$transaction([
             prisma.refreshToken.update({
                 where: { id: storedToken.id },

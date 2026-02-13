@@ -17,7 +17,7 @@ const swaggerOptions = {
     info: {
       title: 'Electronic Invoicing SaaS API',
       version: '1.0.0',
-      description: 'API REST para sistema de facturación electrónica SaaS multitenant',
+      description: 'REST API for a multitenant SaaS electronic invoicing system',
       contact: {
         name: 'API Support',
         email: 'support@electronic-invoicing.com'
@@ -35,27 +35,27 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Middlewares Globales
+// Global Middlewares
 app.use(cors());
-app.use(express.json()); // Body parser json
+app.use(express.json()); // Body parser JSON
 
-// Documentación
+// Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
-// Rutas de API
+// API Routes
 app.use('/api/auth', authRoutes);
 
 /**
  * @swagger
  * /:
  *   get:
- *     summary: Endpoint raíz - Hola Mundo
- *     description: Retorna un mensaje de bienvenida del API
+ *     summary: Root endpoint - Hello World
+ *     description: Returns a welcome message from the API
  *     tags:
  *       - General
  *     responses:
  *       200:
- *         description: Mensaje de bienvenida exitoso
+ *         description: Welcome message successful
  *         content:
  *           application/json:
  *             schema:
@@ -63,7 +63,7 @@ app.use('/api/auth', authRoutes);
  *               properties:
  *                 message:
  *                   type: string
- *                   example: "¡Hola Mundo! Bienvenido al backend de facturación electrónica SaaS"
+ *                   example: "Hello World! Welcome to the SaaS Electronic Invoicing backend"
  *                 status:
  *                   type: string
  *                   example: "OK"
@@ -71,10 +71,9 @@ app.use('/api/auth', authRoutes);
  *                   type: string
  *                   format: date-time
  */
-// Ruta básica Hello World
 app.get('/', (req, res) => {
   res.json({
-    message: '¡Hola Mundo! Bienvenido al backend de facturación electrónica SaaS',
+    message: 'Hello World! Welcome to the SaaS Electronic Invoicing backend',
     status: 'OK',
     timestamp: new Date().toISOString()
   });
@@ -85,12 +84,12 @@ app.get('/', (req, res) => {
  * /health:
  *   get:
  *     summary: Health check
- *     description: Verifica el estado y disponibilidad del servidor
+ *     description: Verifies server status and availability
  *     tags:
  *       - General
  *     responses:
  *       200:
- *         description: Servidor disponible
+ *         description: Server is healthy
  *         content:
  *           application/json:
  *             schema:
@@ -106,7 +105,7 @@ app.get('/', (req, res) => {
  *                   type: string
  *                   format: date-time
  */
-// Ruta de health check
+// Health check route
 app.get('/health', (req, res) => {
   res.json({
     status: 'healthy',
@@ -115,19 +114,19 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Middleware Global de Errores (debe ir al final)
+// Global Error Middleware (should be at the end)
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error(err.stack);
   res.status(500).json({
     success: false,
-    message: 'Error interno del servidor',
+    message: 'Internal server error',
     error: process.env.NODE_ENV === 'development' ? err.message : undefined
   });
 });
 
-// Iniciar servidor
+// Start server
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-  console.log(`📊 Health check en http://localhost:${PORT}/health`);
-  console.log(`📚 Swagger API Docs en http://localhost:${PORT}/api-docs`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`📊 Health check at http://localhost:${PORT}/health`);
+  console.log(`📚 Swagger API Docs at http://localhost:${PORT}/api-docs`);
 });

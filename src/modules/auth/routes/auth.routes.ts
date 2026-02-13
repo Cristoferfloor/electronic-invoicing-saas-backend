@@ -6,16 +6,16 @@ const router = Router();
 /**
  * @swagger
  * tags:
- *   name: Autenticación
- *   description: Endpoints para gestión de sesiones y registro de empresas
+ *   name: Authentication
+ *   description: Endpoints for session management and company registration
  */
 
 /**
  * @swagger
  * /api/auth/register-tenant:
  *   post:
- *     summary: Registrar una nueva empresa (Tenant) y usuario administrador
- *     tags: [Autenticación]
+ *     summary: Register a new company (Tenant) and administrator user
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -23,56 +23,56 @@ const router = Router();
  *           schema:
  *             type: object
  *             required:
- *               - nombre_comercial
- *               - razon_social
- *               - ruc
- *               - direccion
- *               - email_empresa
- *               - nombre
- *               - apellido
- *               - email_admin
+ *               - commercialName
+ *               - legalName
+ *               - taxId
+ *               - address
+ *               - email
+ *               - firstName
+ *               - lastName
+ *               - adminEmail
  *               - password
  *             properties:
- *               nombre_comercial:
+ *               commercialName:
  *                 type: string
- *                 example: "Mi Empresa S.A."
- *               razon_social:
+ *                 example: "My Company S.A."
+ *               legalName:
  *                 type: string
- *                 example: "Mi Empresa Soluciones Cia. Ltda."
- *               ruc:
+ *                 example: "My Company Solutions Cia. Ltda."
+ *               taxId:
  *                 type: string
- *                 description: RUC válido de 13 dígitos
+ *                 description: Valid 13-digit TAX ID (RUC)
  *                 example: "1799999999001"
- *               direccion:
+ *               address:
  *                 type: string
- *                 example: "Av. Amazonas y Naciones Unidas"
- *               telefono:
+ *                 example: "Amazonas Av. and United Nations"
+ *               phone:
  *                 type: string
  *                 example: "0999999999"
- *               email_empresa:
+ *               email:
  *                 type: string
  *                 format: email
- *                 example: "contacto@miempresa.com"
- *               nombre:
+ *                 example: "contact@mycompany.com"
+ *               firstName:
  *                 type: string
- *                 description: Nombre del administrador
- *                 example: "Juan"
- *               apellido:
+ *                 description: Administrator's first name
+ *                 example: "John"
+ *               lastName:
  *                 type: string
- *                 description: Apellido del administrador
- *                 example: "Perez"
- *               email_admin:
+ *                 description: Administrator's last name
+ *                 example: "Doe"
+ *               adminEmail:
  *                 type: string
  *                 format: email
- *                 description: Email para inicio de sesión del admin
- *                 example: "admin@miempresa.com"
+ *                 description: Administrator's login email
+ *                 example: "admin@mycompany.com"
  *               password:
  *                 type: string
- *                 description: Mínimo 8 caracteres, 1 mayúscula, 1 número
- *                 example: "Segura123."
+ *                 description: Minimum 8 characters, 1 uppercase, 1 number
+ *                 example: "Secure123."
  *     responses:
  *       201:
- *         description: Empresa registrada exitosamente
+ *         description: Company registered successfully
  *         content:
  *           application/json:
  *             schema:
@@ -89,14 +89,14 @@ const router = Router();
  *                       properties:
  *                         id:
  *                           type: string
- *                         nombre_comercial:
+ *                         commercialName:
  *                           type: string
  *                     accessToken:
  *                       type: string
  *                     refreshToken:
  *                       type: string
  *       400:
- *         description: Error de validación o datos duplicados
+ *         description: Validation error or duplicate data
  */
 router.post('/register-tenant', AuthController.registerTenant);
 
@@ -104,8 +104,8 @@ router.post('/register-tenant', AuthController.registerTenant);
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Iniciar sesión
- *     tags: [Autenticación]
+ *     summary: Login user
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -126,7 +126,7 @@ router.post('/register-tenant', AuthController.registerTenant);
  *                 example: "Admin123."
  *     responses:
  *       200:
- *         description: Login exitoso
+ *         description: Login successful
  *         content:
  *           application/json:
  *             schema:
@@ -145,14 +145,14 @@ router.post('/register-tenant', AuthController.registerTenant);
  *                           type: string
  *                         email:
  *                           type: string
- *                         rol:
+ *                         role:
  *                           type: string
  *                     accessToken:
  *                       type: string
  *                     refreshToken:
  *                       type: string
  *       401:
- *         description: Credenciales inválidas
+ *         description: Invalid credentials
  */
 router.post('/login', AuthController.login);
 
@@ -160,8 +160,8 @@ router.post('/login', AuthController.login);
  * @swagger
  * /api/auth/refresh:
  *   post:
- *     summary: Renovar Access Token usando Refresh Token
- *     tags: [Autenticación]
+ *     summary: Renew Access Token using Refresh Token
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -173,10 +173,10 @@ router.post('/login', AuthController.login);
  *             properties:
  *               refreshToken:
  *                 type: string
- *                 example: "uuid-refresh-token-aqui"
+ *                 example: "uuid-refresh-token-here"
  *     responses:
  *       200:
- *         description: Token renovado exitosamente
+ *         description: Token renewed successfully
  *         content:
  *           application/json:
  *             schema:
@@ -193,7 +193,7 @@ router.post('/login', AuthController.login);
  *                     refreshToken:
  *                       type: string
  *       401:
- *         description: Token inválido o expirado
+ *         description: Invalid or expired token
  */
 router.post('/refresh', AuthController.refreshToken);
 
@@ -201,13 +201,12 @@ router.post('/refresh', AuthController.refreshToken);
  * @swagger
  * /api/auth/logout:
  *   post:
- *     summary: Cerrar sesión (Cliente debe descartar tokens)
- *     tags: [Autenticación]
+ *     summary: Log out (Client must discard tokens)
+ *     tags: [Authentication]
  *     responses:
  *       200:
- *         description: Sesión cerrada correctamente
+ *         description: Session closed successfully
  */
 router.post('/logout', AuthController.logout);
 
 export default router;
-

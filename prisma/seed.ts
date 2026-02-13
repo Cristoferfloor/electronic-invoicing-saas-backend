@@ -1,42 +1,40 @@
-import { PrismaClient, Rol } from '@prisma/client';
+import { PrismaClient, Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
-    console.log('🌱 Iniciando seed...');
+    console.log('🌱 Starting seed...');
 
-    // 1. Crear Tenant Demo
+    // 1. Create Demo Tenant
     const tenant = await prisma.tenant.upsert({
-        where: { ruc: '1799999999001' },
+        where: { taxId: '1799999999001' },
         update: {},
         create: {
-            nombre_comercial: 'Empresa Demo SaaS',
-            razon_social: 'Empresa Demo S.A.',
-            ruc: '1799999999001',
-            direccion: 'Av. Amazonas y Naciones Unidas',
-            email: 'contacto@empresa-demo.com',
-            telefono: '0999999999',
+            commercialName: 'Empresa Demo SaaS',
+            legalName: 'Empresa Demo S.A.',
+            taxId: '1799999999001',
+            address: 'Amazonas Av. and United Nations',
+            email: 'contact@demo-company.com',
+            phone: '0999999999',
             plan: 'PREMIUM',
-            configuracion: {
+            configuration: {
                 create: {
-                    establecimiento: '001',
-                    punto_emision: '001',
-                    ambiente: 'PRUEBAS',
-                    tipo_emision: 1
+                    establishment: '001',
+                    emissionPoint: '001',
+                    environment: 'TEST',
+                    emissionType: 1
                 }
             }
         },
     });
 
-    console.log(`🏢 Tenant creado: ${tenant.nombre_comercial}`);
+    console.log(`🏢 Tenant created: ${tenant.commercialName}`);
 
-    // 2. Crear Usuario Admin
+    // 2. Create Admin User
     const passwordHash = await bcrypt.hash('Admin123.', 10);
 
-    // Usamos findFirst porque el unique es compuesto en el modelo pero no en la API Fluent de prisma en upsert directo a veces
-    // Para upsert con unique compuesto @@unique([tenantId, email]):
-    const admin = await prisma.usuario.upsert({
+    const admin = await prisma.user.upsert({
         where: {
             tenantId_email: {
                 tenantId: tenant.id,
@@ -46,16 +44,16 @@ async function main() {
         update: {},
         create: {
             tenantId: tenant.id,
-            nombre: 'Super',
-            apellido: 'Admin',
+            firstName: 'Super',
+            lastName: 'Admin',
             email: 'admin@demo.com',
-            password_hash: passwordHash,
-            rol: Rol.ADMIN,
-            activo: true
+            passwordHash: passwordHash,
+            role: Role.ADMIN,
+            isActive: true
         },
     });
 
-    console.log(`👤 Usuario Admin creado: ${admin.email} (Password: Admin123.)`);
+    console.log(`👤 Admin User created: ${admin.email} (Password: Admin123.)`);
 }
 
 main()

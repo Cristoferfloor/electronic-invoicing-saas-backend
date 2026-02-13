@@ -1,7 +1,7 @@
 import { Response } from 'express';
 
 export class ResponseHelper {
-    static success(res: Response, data: any, message: string = 'Operación exitosa', statusCode: number = 200) {
+    static success(res: Response, data: any, message: string = 'Operation successful', statusCode: number = 200) {
         return res.status(statusCode).json({
             success: true,
             message,
@@ -9,7 +9,7 @@ export class ResponseHelper {
         });
     }
 
-    static error(res: Response, message: string = 'Error interno del servidor', statusCode: number = 500, error: any = null) {
+    static error(res: Response, message: string = 'Internal server error', statusCode: number = 500, error: any = null) {
         return res.status(statusCode).json({
             success: false,
             message,
