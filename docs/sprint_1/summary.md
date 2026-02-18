@@ -1,9 +1,9 @@
 # 📋 RESUMEN EJECUTIVO - SPRINT 1
 
 ## Proyecto: Electronic Invoicing SaaS Backend
-**Fecha:** 10 de febrero de 2026  
-**Estado:** Documentación y configuración completadas  
-**Próxima fase:** Ejecución de Sprint 1
+**Fecha:** 18 de febrero de 2026  
+**Estado:** ✅ COMPLETADO (Backend & Frontend)
+**Próxima fase:** Sprint 2 (Gestión de Usuarios y Tenants)
 
 ---
 
@@ -78,7 +78,8 @@ Establecer la **infraestructura base** del backend con autenticación JWT y base
 | Factura | tenant_id ✅ | 1:N con detalles_facturas | [tenant_id], [cliente_id], [estado] |
 | DetalleFactura | tenant_id ✅ | N:1 con factura y producto | [tenant_id], [factura_id] |
 
-**Aislamiento multitenant:** ✅ Garantizado mediante discriminador `tenant_id` en 5 tablas
+**Aislamiento multitenant:** ✅ Garantizado mediante `tenantMiddleware` y `Prisma Extensions` para filtrado automático.
+**Login Flexible:** ✅ Soporte para inicio de sesión mediante Email del Admin, Email de Empresa o RUC.
 
 ---
 
@@ -201,10 +202,11 @@ Equivalente: 3-4 días de trabajo a tiempo completo
 - ✅ Servidor Express corriendo sin errores
 - ✅ Conexión a PostgreSQL funcionando
 - ✅ Base de datos con 6 tablas multitenant creadas
-- ✅ Registro de usuarios operativo
-- ✅ Login con JWT funcionando
-- ✅ Refresh de tokens operativo
-- ✅ Aislamiento multitenant validado
+- ✅ Registro de usuarios operativo (Backend & Frontend)
+- ✅ Login flexible (Email/RUC) funcionando con estética premium
+- ✅ Refresh de tokens operativo con rotación automática
+- ✅ Aislamiento multitenant validado mediante Context y Prisma Extension
+- ✅ Limpieza automática de sesiones caducadas/revocadas
 
 ### Técnico
 - ✅ Schema Prisma validado sin errores

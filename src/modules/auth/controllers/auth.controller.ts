@@ -15,8 +15,9 @@ export class AuthController {
 
             return ResponseHelper.success(res, result, 'Company registered successfully', 201);
         } catch (error: any) {
-            if (error.name === 'ZodError') {
-                const errorDetails = error.issues.map((issue: any) => ({
+            if (error.name === 'ZodError' || (error.constructor && error.constructor.name === 'ZodError')) {
+                const issues = error.issues || [];
+                const errorDetails = issues.map((issue: any) => ({
                     field: issue.path.join('.'),
                     message: issue.message
                 }));
@@ -29,13 +30,17 @@ export class AuthController {
     static async login(req: Request, res: Response) {
         try {
             const { email, password } = loginSchema.parse(req.body);
-
             const result = await AuthService.login(email, password);
 
             return ResponseHelper.success(res, result, 'Login successful');
         } catch (error: any) {
-            if (error.name === 'ZodError') {
-                return ResponseHelper.error(res, 'Validation error', 400, error.errors);
+            if (error.name === 'ZodError' || (error.constructor && error.constructor.name === 'ZodError')) {
+                const issues = error.issues || [];
+                const errorDetails = issues.map((issue: any) => ({
+                    field: issue.path.join('.'),
+                    message: issue.message
+                }));
+                return ResponseHelper.error(res, 'Validation error', 400, errorDetails);
             }
             return ResponseHelper.error(res, error.message, 401);
         }
@@ -53,9 +58,27 @@ export class AuthController {
         }
     }
 
+    static async getProfile(req: Request, res: Response) {
+        try {
+            const userId = req.user?.userId;
+            if (!userId) throw new Error('User context not found');
+
+            const result = await AuthService.getProfile(userId);
+            return ResponseHelper.success(res, result, 'User profile retrieved');
+        } catch (error: any) {
+            return ResponseHelper.error(res, error.message, 404);
+        }
+    }
+
     static async logout(req: Request, res: Response) {
-        // Token revocation logic would ideally happen in the service
-        // but since refresh token is used for this, we simply clear on client side
-        return ResponseHelper.success(res, null, 'Logged out successfully');
+        try {
+            const { refreshToken } = req.body;
+            if (refreshToken) {
+                await AuthService.logout(refreshToken);
+            }
+            return ResponseHelper.success(res, null, 'Logged out successfully');
+        } catch (error: any) {
+            return ResponseHelper.error(res, error.message, 500);
+        }
     }
 }

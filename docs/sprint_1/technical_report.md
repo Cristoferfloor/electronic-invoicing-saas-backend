@@ -35,11 +35,11 @@ Se implementó un sistema de autenticación completo con el flujo:
 ### Componentes:
 - **AuthService**: Contiene la lógica de negocio.
     - `registerTenant`: Crea Tenant, Usuario Admin y Configuración en una transacción atómica (ACID).
-    - `login`: Valida credenciales y estado del tenant.
-    - `refreshToken`: Permite renovar el token de acceso sin pedir credenciales nuevamente.
+    - `login`: Valida credenciales por Email o RUC y estado del tenant. Realiza limpieza automática de tokens.
+    - `refreshToken`: Implementa **Rotación de Tokens** (borrado del anterior y creación de nuevo).
 - **AuthController**: Maneja las peticiones HTTP y respuestas estandarizadas.
-- **AuthRoutes**: Define los endpoints públicos (`/api/auth/*`).
-- **Validaciones**: Se utilizan esquemas `Zod` para validar RUC (13 dígitos), emails y fortaleza de contraseñas antes de procesar cualquier solicitud.
+- **AuthRoutes**: Define los endpoints públicos y protegidos con `tenantMiddleware`.
+- **Aislamiento Avanzado**: Se utiliza `AsyncLocalStorage` y `Prisma Extensions` para garantizar que todas las consultas a la DB incluyan el filtro de `tenantId` de forma transparente y segura.
 
 ## 5. middlewares Implementados
 1.  **AuthMiddleware**: Intercepta cada petición protegida, verifica la firma del JWT y decodifica el `tenantId` y `userId`, inyectándolos en el contexto del request.

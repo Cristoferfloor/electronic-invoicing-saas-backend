@@ -7,6 +7,7 @@ export const registerTenantSchema = z.object({
     taxId: z.string().length(13, 'TAX ID (RUC) must be exactly 13 digits long').regex(/^\d+$/, 'TAX ID can only contain numbers'),
     address: z.string().min(5, 'Address is required'),
     phone: z.string().optional(),
+    logoUrl: z.string().optional(),
     email: z.string().email('Invalid company email'),
 
     // Administrator Data
@@ -19,7 +20,7 @@ export const registerTenantSchema = z.object({
 });
 
 export const loginSchema = z.object({
-    email: z.string().email('Invalid email'),
+    email: z.string().min(1, 'Identifier (Email or RUC) is required'),
     password: z.string().min(1, 'Password is required'),
 });
 

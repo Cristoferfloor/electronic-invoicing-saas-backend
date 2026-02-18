@@ -13,7 +13,7 @@ export class ResponseHelper {
         return res.status(statusCode).json({
             success: false,
             message,
-            error: process.env.NODE_ENV === 'development' ? error : undefined,
+            error: process.env.NODE_ENV === 'production' ? undefined : error,
         });
     }
 }

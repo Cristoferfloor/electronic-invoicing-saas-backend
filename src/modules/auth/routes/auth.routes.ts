@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { AuthController } from '../controllers/auth.controller';
+import { authMiddleware } from '../../../middlewares/auth.middleware';
+import { tenantMiddleware } from '../../../middlewares/tenant.middleware';
 
 const router = Router();
 
@@ -208,5 +210,19 @@ router.post('/refresh', AuthController.refreshToken);
  *         description: Session closed successfully
  */
 router.post('/logout', AuthController.logout);
+
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current logged in user profile
+ *     tags: [Authentication]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Profile retrieved successfully
+ */
+router.get('/me', authMiddleware, tenantMiddleware, AuthController.getProfile);
 
 export default router;

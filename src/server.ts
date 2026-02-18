@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './modules/auth/routes/auth.routes';
+import { AuthService } from './modules/auth/services/auth.service';
+import path from 'path';
 
 dotenv.config();
 
@@ -38,6 +40,10 @@ const swaggerSpec = swaggerJsdoc(swaggerOptions);
 // Global Middlewares
 app.use(cors());
 app.use(express.json()); // Body parser JSON
+app.use(express.urlencoded({ extended: true }));
+
+// Static Files (Imágenes/Uploads)
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
@@ -127,6 +133,16 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 // Start server
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`📁 Static files server active at /uploads`);
   console.log(`📊 Health check at http://localhost:${PORT}/health`);
   console.log(`📚 Swagger API Docs at http://localhost:${PORT}/api-docs`);
+
+  // --- AUTOMATIC MAINTENANCE ---
+  // Clean tokens once at startup
+  AuthService.cleanExpiredTokens().catch((err: any) => console.error('Startup cleanup failed:', err));
+
+  // Clean tokens every 24 hours (86,400,000 ms)
+  setInterval(() => {
+    AuthService.cleanExpiredTokens().catch((err: any) => console.error('Scheduled cleanup failed:', err));
+  }, 24 * 60 * 60 * 1000);
 });

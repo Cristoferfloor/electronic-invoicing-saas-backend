@@ -27,7 +27,7 @@ export class AuthService {
     // Register Tenant + Admin User
     static async registerTenant(data: any) {
         const {
-            commercialName, legalName, taxId, address, phone, email, // Tenant Data
+            commercialName, legalName, taxId, address, phone, email, logoUrl, // Tenant Data
             firstName, lastName, adminEmail, password // Admin Data
         } = data;
 
@@ -52,6 +52,7 @@ export class AuthService {
                     address,
                     phone,
                     email,
+                    logoUrl, // Aquí guardamos la imagen
                     plan: 'FREE',
                     configuration: {
                         create: {
@@ -83,6 +84,11 @@ export class AuthService {
         // Generate tokens
         const tokens = this.generateTokens(result.user.id, result.tenant.id, Role.ADMIN);
 
+        // Limpieza total: borramos cualquier token previo de este usuario para que solo quede UNO
+        await prisma.refreshToken.deleteMany({
+            where: { userId: result.user.id }
+        });
+
         // Save Refresh Token
         await prisma.refreshToken.create({
             data: {
@@ -105,10 +111,18 @@ export class AuthService {
     }
 
     // Login
-    static async login(email: string, password: string) {
-        // Search user
+    static async login(identifier: string, password: string) {
+        const cleanIdentifier = identifier.trim();
+
+        // Buscar usuario por su email, por el RUC de la empresa o por el email de la empresa
         const user = await prisma.user.findFirst({
-            where: { email },
+            where: {
+                OR: [
+                    { email: cleanIdentifier },
+                    { tenant: { taxId: cleanIdentifier } },
+                    { tenant: { email: cleanIdentifier } }
+                ]
+            },
             include: { tenant: true }
         });
 
@@ -122,6 +136,11 @@ export class AuthService {
 
         // Generate new tokens
         const tokens = this.generateTokens(user.id, user.tenantId, user.role);
+
+        // Limpieza total: borramos cualquier token previo de este usuario para que solo quede UNO
+        await prisma.refreshToken.deleteMany({
+            where: { userId: user.id }
+        });
 
         // Save Refresh Token
         await prisma.refreshToken.create({
@@ -166,21 +185,56 @@ export class AuthService {
         const user = storedToken.user;
         const newTokens = this.generateTokens(user.id, user.tenantId, user.role);
 
-        // Revoke the used one and create a new one (Refresh Token Rotation)
-        await prisma.$transaction([
-            prisma.refreshToken.update({
-                where: { id: storedToken.id },
-                data: { isRevoked: true }
-            }),
-            prisma.refreshToken.create({
-                data: {
-                    userId: user.id,
-                    token: newTokens.refreshToken,
-                    expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION * 1000)
-                }
-            })
-        ]);
+        // Limpieza: borramos el token anterior y cualquier otro viejo para que solo quede el nuevo
+        await prisma.refreshToken.deleteMany({
+            where: { userId: user.id }
+        });
+
+        const newTokenEntry = await prisma.refreshToken.create({
+            data: {
+                userId: user.id,
+                token: newTokens.refreshToken,
+                expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRATION * 1000)
+            }
+        });
 
         return newTokens;
+    }
+
+    static async logout(token: string) {
+        await prisma.refreshToken.deleteMany({
+            where: { token }
+        });
+    }
+
+    static async cleanExpiredTokens() {
+        const deleted = await prisma.refreshToken.deleteMany({
+            where: {
+                OR: [
+                    { expiresAt: { lt: new Date() } },
+                    { isRevoked: true }
+                ]
+            }
+        });
+        console.log(`[MAINTENANCE] Cleaned up ${deleted.count} expired/revoked tokens.`);
+    }
+
+    static async getProfile(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: { tenant: true }
+        });
+
+        if (!user) throw new Error('User not found');
+
+        return {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            role: user.role,
+            tenantId: user.tenantId,
+            tenant: user.tenant
+        };
     }
 }
