@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import authRoutes from './modules/auth/routes/auth.routes';
+import tenantRoutes from './modules/tenants/routes/tenant.routes';
+import userRoutes from './modules/users/routes/user.routes';
 import { AuthService } from './modules/auth/services/auth.service';
 import path from 'path';
 
@@ -50,6 +52,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/tenant', tenantRoutes);
+app.use('/api/users', userRoutes);
 
 /**
  * @swagger
