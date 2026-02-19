@@ -46,7 +46,7 @@ prisma/*.db-shm
 prisma/*.db-wal
 
 # Uploads
-uploads/
+# uploads/
 !uploads/.gitkeep
 
 # Misc
