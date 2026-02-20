@@ -80,9 +80,11 @@ export class UserService {
     static async createUser(tenantId: string, data: any) {
         const { firstName, lastName, email, password, role } = data;
 
-        // Verificar si el email ya existe
-        const existingUser = await prisma.user.findFirst({ where: { email } });
-        if (existingUser) throw new Error('El correo electrónico ya está registrado');
+        // Verificar si el email ya existe EN ESTE TENANT (cada tenant puede tener usuarios con mismo email)
+        const existingUser = await prisma.user.findFirst({ 
+            where: { email, tenantId } 
+        });
+        if (existingUser) throw new Error('El correo electrónico ya está registrado en su empresa');
 
         const passwordHash = await bcrypt.hash(password, 10);
 
@@ -133,6 +135,16 @@ export class UserService {
                 lastName,
                 role,
                 isActive,
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                role: true,
+                isActive: true,
+                lastLogin: true,
+                createdAt: true,
             },
         });
     }

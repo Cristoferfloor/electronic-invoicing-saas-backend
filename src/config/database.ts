@@ -1,5 +1,4 @@
 import { PrismaClient } from '@prisma/client';
-
 import { tenantContext } from '../shared/context/tenant.context';
 
 // Instancia base de PrismaClient
@@ -16,17 +15,23 @@ const prisma = prismaBase.$extends({
     query: {
         $allModels: {
             async $allOperations({ model, operation, args, query }) {
-                const context = tenantContext.getStore();
-                const tenantId = context?.tenantId;
+                // Intentar obtener tenantId del contexto primero
+                let tenantId: string | undefined;
+                
+                try {
+                    const context = tenantContext.getStore();
+                    tenantId = context?.tenantId;
+                } catch (e) {
+                    // Si el contexto no funciona, ignorar
+                }
 
-                // Si no hay tenantId en el contexto (ej: login, registro, cron jobs), 
-                // ejecutamos la consulta normal.
+                // Si no hay tenantId en el contexto, ejecutar sin filtro
                 if (!tenantId) {
                     return query(args);
                 }
 
                 // Lista de modelos que NO tienen tenantId directo (globales o con relación 1:1 especial)
-                const globalModels = ['Tenant', 'BillingConfiguration'];
+                const globalModels = ['Tenant', 'BillingConfiguration', 'RefreshToken'];
                 if (globalModels.includes(model)) {
                     return query(args);
                 }
@@ -34,7 +39,7 @@ const prisma = prismaBase.$extends({
                 const extendedArgs = args as any;
 
                 // Inyectar tenantId en operaciones de lectura/escritura
-                if (['findMany', 'findFirst', 'findUnique', 'count', 'aggregate', 'groupBy', 'update', 'updateMany', 'upsert', 'delete', 'deleteMany'].includes(operation)) {
+                if (['findMany', 'findFirst', 'count', 'aggregate', 'groupBy', 'update', 'updateMany', 'upsert', 'delete', 'deleteMany'].includes(operation)) {
                     extendedArgs.where = { ...extendedArgs.where, tenantId };
                 } else if (operation === 'create') {
                     extendedArgs.data = { ...extendedArgs.data, tenantId };
